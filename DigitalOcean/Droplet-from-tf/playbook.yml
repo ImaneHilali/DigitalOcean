@@ -1,0 +1,144 @@
+---
+- name: Configure Nginx
+  hosts: all
+  remote_user: root
+  become: true
+
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+
+  tasks:
+    - name: Basically "apt-get update"
+      apt:
+        update_cache: yes
+      
+    - name: Install Nginx
+      apt:
+        name: nginx
+        state: latest
+        update_cache: yes
+        cache_valid_time: 3600   # Set a longer cache validity time in seconds
+
+    - name: Start Nginx service
+      service:
+        name: nginx
+        state: restarted
+        enabled: yes
+
+    - name: Copy Nginx config
+      copy:
+        src: files/nginx.conf
+        dest: /etc/nginx/nginx.conf
+      notify:
+        - Restart Nginx
+        
+    - name: copy index.html
+      template: src=templates/index.html dest=/var/www/html/index.html
+        mode=0644
+
+    - name: Install OpenJDK (Java)
+      apt:
+        name: openjdk-11-jdk
+        state: present
+    
+    - name: Install Maven
+      apt:
+        name: maven
+        state: present
+
+    - name: Install Docker
+      apt:
+        name: ['docker.io', 'docker-compose']
+        state: present
+
+    - name: Install Node.js and npm
+      apt:
+        name: ['nodejs', 'npm']
+        state: present
+
+    - name: Update Node.js and npm to compatible versions
+      shell: |
+            export PATH=/usr/local/bin:$PATH
+            npm install -g npm@6.11.0
+            npm install -g n
+            n 16.14.0
+      args:
+            executable: /bin/bash
+      register: node_update_result
+      changed_when: node_update_result.stdout.find('installed') != -1
+
+    - name: Install Angular CLI
+      npm:
+        name: '@angular/cli'
+        global: yes
+
+    - name: Install Angular Material
+      npm:
+        name: '@angular/material'
+        global: yes
+
+    - name: Install unzip and zip packages
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - unzip
+        - zip
+
+    - name: Install Spring Boot CLI
+      get_url:
+        url: "https://get.sdkman.io"
+        dest: "/tmp/install_sdkman.sh"
+
+    - name: Run SDKMAN installation script
+      shell: "bash /tmp/install_sdkman.sh"
+      args:
+        executable: /bin/bash
+        creates: "$HOME/.sdkman/bin/sdkman-init.sh"
+
+    - name: Install Spring Boot CLI using SDKMAN
+      shell: "source $HOME/.sdkman/bin/sdkman-init.sh && sdk install springboot"
+      args:
+        executable: /bin/bash
+      environment:
+        SDKMAN_CANDIDATES_API_BASE: "https://candidates-api.sdkman.io"
+
+    - name: Set SDKMAN environment variables (optional)
+      shell: "echo 'source $HOME/.sdkman/bin/sdkman-init.sh' >> $HOME/.bashrc"
+      args:
+        executable: /bin/bash
+      environment:
+        HOME: "{{ ansible_env.HOME }}"
+      when: ansible_env.HOME is defined
+
+    - name: Install MySQL Server
+      apt:
+        name: mysql-server
+        state: present
+
+    - name: Install Prometheus and Grafana
+      apt:
+        name: ['prometheus', 'grafana']
+        state: present
+    
+    # Add more tasks for installing other dependencies, databases, etc.
+    # For example, tasks for installing PostgreSQL, RabbitMQ, etc.
+    
+    - name: Start and Enable Docker Service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Start and Enable Jenkins Service
+      service:
+        name: jenkins
+        state: started
+        enabled: yes
+        
+  handlers:
+    - name: Restart Nginx
+      systemd:
+        name: nginx
+        state: restarted
+        enabled: yes
