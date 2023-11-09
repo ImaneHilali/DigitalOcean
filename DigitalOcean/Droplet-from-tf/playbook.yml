@@ -17,7 +17,7 @@
         name: nginx
         state: latest
         update_cache: yes
-        cache_valid_time: 3600   # Set a longer cache validity time in seconds
+        cache_valid_time: 3600   
 
     - name: Start Nginx service
       service:
@@ -120,9 +120,7 @@
       apt:
         name: ['prometheus', 'grafana']
         state: present
-    
-    # Add more tasks for installing other dependencies, databases, etc.
-    # For example, tasks for installing PostgreSQL, RabbitMQ, etc.
+     
     
     - name: Start and Enable Docker Service
       service:
